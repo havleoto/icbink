@@ -1,6 +1,7 @@
 from itertools import product
 
 from rpython.rlib import jit, rstring, unroll
+from rpython.rlib.parsing.parsing import ParseError
 
 import debug
 import kernel_type as kt
@@ -295,6 +296,20 @@ def println(val):
     print_(val)
     print
     return kt.inert
+
+@export('load', [kt.String], simple=False)
+def load_primitive(arg, env, cont):
+    try:
+        path = arg.strval
+        src = open(path).read()
+        program = kt.Pair(_ground_env.bindings['$sequence'],
+                          parse.parse(src, path))
+    except ParseError as e:
+        kt.raise_(kt.system_error_cont, e.nice_error_message(), kt.Pair(arg, kt.nil))
+    except EnvironmentError as e:
+        kt.raise_(kt.system_error_cont, str(e), kt.Pair(arg, kt.nil))
+    else:
+        return program, env, cont
 
 class TestError(Exception):
     def __init__(self, val):
